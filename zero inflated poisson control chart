@@ -1,0 +1,76 @@
+# R Code: Zero-Inflated Poisson (ZIP) Control Chart
+
+
+# Load libraries
+library(ggplot2)
+library(readxl)
+library(pscl)
+library(MASS)
+
+# Define the file path (update with actual path)
+file_path <- "C:/Users/Utente/Desktop/zero inflated poisson simulated data/zero_inflated_poiss_simul_data.xlsx"
+
+# Read the Excel file (ensuring first row is used as column names)
+df <- read_excel(file_path, col_names = TRUE)
+
+# Print column names to verify correct reading
+print("Detected column names:")
+print(colnames(df))
+
+# Assuming the first column contains the zero-inflated count data
+data_name <- colnames(df)[1]  # Extract the column name
+data <- as.numeric(df[[1]])  
+
+# Remove NA values (in case of formatting issues)
+data <- na.omit(data)
+
+# Fit a Zero-Inflated Poisson (ZIP) model
+zip_model <- zeroinfl(data ~ 1 | 1, dist = "poisson")  # Intercept-only ZIP model
+
+# Extract model parameters
+lambda <- exp(coef(zip_model)["count_(Intercept)"])  # Poisson mean
+zero_inflation_prob <- plogis(coef(zip_model)["zero_(Intercept)"])  # Zero inflation probability
+
+# Calculate ZIP control limits
+ucl <- lambda + 3 * sqrt(lambda * (1 - zero_inflation_prob))
+lcl <- max(0, lambda - 3 * sqrt(lambda * (1 - zero_inflation_prob)))  # Ensure LCL is not below 0
+
+# Display ZIP model results
+cat("\nZero-Inflated Poisson (ZIP) Model Summary:\n")
+cat("Estimated Poisson Mean (lambda):", lambda, "\n")
+cat("Estimated Zero-Inflation Probability:", zero_inflation_prob, "\n")
+cat("Upper Control Limit (UCL):", ucl, "\n")
+cat("Lower Control Limit (LCL):", lcl, "\n\n")
+
+# Create a data frame for the ZIP control chart
+control_chart_data <- data.frame(
+  Sample = 1:length(data),
+  Counts = data,
+  Mean = lambda,
+  UCL = ucl,
+  LCL = lcl
+)
+
+# Plot the ZIP Control Chart with Adjusted Limits
+ggplot(control_chart_data, aes(x = Sample, y = Counts)) +
+  geom_point(color = "blue") +
+  geom_line(color = "blue") +
+  
+  # Control limit lines
+  geom_hline(yintercept = lambda, color = "green", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = ucl, color = "red", linetype = "dashed", size = 1) +
+  geom_hline(yintercept = lcl, color = "red", linetype = "dashed", size = 1) +
+  
+  # Annotate UCL, LCL, and Mean values
+  annotate("text", x = max(control_chart_data$Sample) - 10, y = ucl + 1, 
+           label = paste("UCL =", round(ucl, 2)), color = "red", hjust = 1, fontface = "bold") +
+  annotate("text", x = max(control_chart_data$Sample) - 10, y = lcl - 1, 
+           label = paste("LCL =", round(lcl, 2)), color = "red", hjust = 1, fontface = "bold") +
+  annotate("text", x = max(control_chart_data$Sample) - 10, y = lambda + 1, 
+           label = paste("Mean =", round(lambda, 2)), color = "green", hjust = 1, fontface = "bold") +
+  
+  labs(title = "Zero-Inflated Poisson (ZIP) Control Chart of Simulated Microbial Count Data - Example 1",
+       x = "Sample Index",
+       y = "Counts") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
