@@ -1,0 +1,88 @@
+# SIMULATED DATA SLIGHTLY OVERDISPERSED: NEGATIVE BINOMIAL FIT + CONTROL CHART
+
+# Load necessary libraries
+library(ggplot2)
+library(MASS)
+library(readxl)
+
+# Load the data
+data <- read_excel("your_file_path.xlsx")
+
+# Extract the overdispersed column
+overdispersed_data <- data$Overdispersed
+
+# Calculate basic statistics
+mean_data <- mean(overdispersed_data)
+variance_data <- var(overdispersed_data)
+overdispersion_factor <- variance_data / mean_data  # Variance-to-mean ratio
+
+# Fit a Negative Binomial Model
+nb_model <- glm.nb(overdispersed_data ~ 1)  # Intercept-only model
+
+# Extract fitted mean and dispersion parameter
+fitted_mean <- nb_model$fitted.values
+dispersion_param <- nb_model$theta
+
+# Display the results of overdispersion analysis
+cat("Analysis of Overdispersion:\n")
+cat("Mean of the data:", mean_data, "\n")
+cat("Variance of the data:", variance_data, "\n")
+cat("Overdispersion Factor (Variance/Mean):", overdispersion_factor, "\n")
+cat("Dispersion Parameter (theta):", dispersion_param, "\n\n")
+
+# Plot histogram with the Negative Binomial distribution
+histogram_data <- data.frame(Counts = overdispersed_data)
+max_count <- max(overdispersed_data)
+breaks <- seq(0, max_count + 1, by = 1)
+
+# Calculate the Negative Binomial probabilities for the range of values
+nb_probabilities <- dnbinom(0:max_count, size = dispersion_param, mu = mean_data)
+
+# Create histogram with superimposed Negative Binomial distribution
+ggplot(histogram_data, aes(x = Counts)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1, fill = "lightblue", color = "black") +
+  stat_function(fun = function(x) dnbinom(x, size = dispersion_param, mu = mean_data),
+                color = "red", size = 1, linetype = "dashed") +
+  labs(title = "Histogram with Fitted Negative Binomial Distribution",
+       x = "Counts",
+       y = "Density") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Calculate control limits
+ucl <- mean(fitted_mean) + 3 * sqrt(mean(fitted_mean) + (mean(fitted_mean)^2) / dispersion_param)
+lcl <- mean(fitted_mean) - 3 * sqrt(mean(fitted_mean) + (mean(fitted_mean)^2) / dispersion_param)
+lcl <- max(0, lcl)  # Ensure LCL is not below 0
+
+# Create a data frame for plotting the control chart
+control_chart_data <- data.frame(
+  Sample = 1:length(overdispersed_data),
+  Counts = overdispersed_data,
+  Mean = rep(mean(fitted_mean), length(overdispersed_data)),  # Repeat Mean for all rows
+  UCL = rep(ucl, length(overdispersed_data)),  # Repeat UCL for all rows
+  LCL = rep(lcl, length(overdispersed_data))   # Repeat LCL for all rows
+)
+
+# Plot the Negative Binomial Control Chart with UCL, LCL, and Mean annotations
+ggplot(control_chart_data, aes(x = Sample, y = Counts)) +
+  geom_point(color = "blue") +
+  geom_line(color = "blue") +
+  
+  # Control limit lines
+  geom_hline(aes(yintercept = Mean), color = "green", linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = UCL), color = "red", linetype = "dashed", size = 1) +
+  geom_hline(aes(yintercept = LCL), color = "red", linetype = "dashed", size = 1) +
+  
+  # Annotate UCL, LCL, and Mean values at the right edge of the chart
+  annotate("text", x = max(control_chart_data$Sample) + 5, y = ucl + 1, 
+           label = paste("UCL =", round(ucl, 2)), color = "red", hjust = 1, fontface = "bold") +
+  annotate("text", x = max(control_chart_data$Sample) + 5, y = lcl - 1, 
+           label = paste("LCL =", round(lcl, 2)), color = "red", hjust = 1, fontface = "bold") +
+  annotate("text", x = max(control_chart_data$Sample) +7, y = mean(fitted_mean) + 1, 
+           label = paste("Mean =", round(mean(fitted_mean), 2)), color = "green", hjust = 1, fontface = "bold") +
+  
+  labs(title = "Negative Binomial Control Chart of Slightly Overdispersed Simulated Data",
+       x = "Sample Index",
+       y = "Counts") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, hjust = 0.5))  # Reduce title size if needed
