@@ -1,0 +1,57 @@
+# R Code: Poisson Distribution Verification
+
+# Load libraries
+library(ggplot2)
+library(readxl)
+library(MASS)
+
+# Define the file path
+file_path <- "your actual file path"
+
+# Read the Excel file (skipping the first row header)
+df <- read_excel(file_path, col_names = TRUE)  
+
+# Convert the first column to numeric (assuming it's named)
+data_name <- colnames(df)[1]  # Extract the column name
+data <- as.numeric(df[[1]])  
+
+# Remove any NA values (in case there are non-numeric rows)
+data <- na.omit(data)
+
+# Compute basic statistics
+mean_data <- mean(data)
+var_data <- var(data)
+overdispersion_factor <- var_data / mean_data
+
+# Print Summary
+cat("Dataset Name:", data_name, "\n")
+cat("Mean:", mean_data, "\n")
+cat("Variance:", var_data, "\n")
+cat("Overdispersion Factor (Variance/Mean):", overdispersion_factor, "\n")
+
+# Compute expected Poisson frequencies
+expected_poisson <- dpois(0:max(data), lambda=mean_data) * length(data)
+
+# Create a frequency table
+observed_counts <- table(factor(data, levels=0:max(data)))
+
+# Perform Chi-Square Goodness-of-Fit Test
+chi_p <- chisq.test(observed_counts, p = expected_poisson / sum(expected_poisson))
+
+cat("Chi-Square Test Statistic (Poisson):", chi_p$statistic, "\n")
+cat("P-Value (Poisson Fit):", chi_p$p.value, "\n")
+
+# Plot Histogram with Expected Poisson Curve
+ggplot(data.frame(x=data), aes(x)) +
+  geom_histogram(aes(y = ..density..), 
+                 bins = 10, 
+                 fill = "blue", 
+                 color = "black", 
+                 alpha = 0.6) +
+  stat_function(fun = dpois, args = list(lambda = mean_data), 
+                color = "red", size = 1.2) +
+  theme_minimal() +
+  labs(title = paste("Histogram & Poisson Fit for", data_name),
+       x = "Observed Counts",
+       y = "Density") +
+  theme(plot.title = element_text(hjust = 0.5))  # Center title
