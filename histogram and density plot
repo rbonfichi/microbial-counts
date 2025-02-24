@@ -5,8 +5,8 @@
 library(ggplot2) # For visualization
 library(readxl) # For reading Excel files
 
-# Define the file path (update this with your actual file path)
-file_path <- "C:/Users/Utente/Desktop/Sligthly overdispersed Simulated Microbial Count Data/Histogram with density plot/simul sligthly overdisp data.xlsx" 
+# Define the file path
+file_path <- "your actual file path" 
 
 # Read the data from Excel (assuming data is in the first sheet, first column)
 df <- read_excel(file_path, skip = 1, col_names = FALSE)  # Skips the first row
