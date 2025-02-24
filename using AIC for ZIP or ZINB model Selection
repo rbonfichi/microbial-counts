@@ -1,0 +1,53 @@
+# R Code: Using AIC for Model Selection between ZIP or ZINB
+
+# Load libraries
+library(pscl)
+library(MASS)
+library(readxl)
+library(writexl)
+
+# Load the data from Excel file
+file_path <- "your file path.xlsx"
+df <- read_excel(file_path)
+
+# Ensure data is numeric
+df$Counts <- as.numeric(df$Counts)
+
+# Compute basic statistics
+mean_data <- mean(df$Counts)
+var_data <- var(df$Counts)
+overdispersion_factor <- var_data / mean_data
+zero_count <- sum(df$Counts == 0)
+zero_percentage <- zero_count / length(df$Counts)
+
+# Fit Zero-Inflated Poisson (ZIP) model
+zip_model <- zeroinfl(Counts ~ 1, data = df, dist = "poisson")
+
+# Fit Zero-Inflated Negative Binomial (ZINB) model
+zinb_model <- zeroinfl(Counts ~ 1, data = df, dist = "negbin")
+
+# Extract AIC values
+zip_aic <- AIC(zip_model)
+zinb_aic <- AIC(zinb_model)
+
+# Determine best model
+best_model <- ifelse(zip_aic < zinb_aic, "ZIP", "ZINB")
+
+# Create results dataframe
+results <- data.frame(
+  Mean = mean_data,
+  Variance = var_data,
+  Overdispersion_Factor = overdispersion_factor,
+  Zero_Count = zero_count,
+  Zero_Percentage = zero_percentage,
+  ZIP_AIC = zip_aic,
+  ZINB_AIC = zinb_aic,
+  Best_Model = best_model
+)
+
+# Save results to an Excel file
+write_xlsx(results, "ZIP_vs_ZINB_Comparison.xlsx")
+
+# Print summary
+print("Analysis complete! Results saved as ZIP_vs_ZINB_Comparison.xlsx")
+print(results)
